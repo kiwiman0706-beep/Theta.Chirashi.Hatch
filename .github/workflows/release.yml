@@ -1,7 +1,8 @@
 # Push a tag like v0.1.0, or run it by hand (Actions → Release → Run workflow: the tag is made from
 # versionName) → tests, then the APK, published as a GitHub Release.
-# Signed with the repository secrets ANDROID_KEYSTORE_B64 / ANDROID_KEYSTORE_PASSWORD /
-# ANDROID_KEY_ALIAS when set, otherwise with the development key in android/signing/.
+# 0.1.x (the old ID jp.yaegaki.theta.chirashi, up to the migration bridge 0.1.1) is signed with the
+# development key in android/signing/, so it can update the installed app. From 0.2.0
+# (app.thetahatch.chirashi) the series key from the secrets is required.
 name: Release
 
 on:
@@ -44,7 +45,9 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
-          if [ -n "$KEYSTORE_B64" ] && [ -n "$KEYSTORE_PASSWORD" ]; then
+          if grep -q "applicationId 'jp.yaegaki.theta.chirashi'" android/app/build.gradle; then
+            echo "Old ID (bridge): development key"
+          elif [ -n "$KEYSTORE_B64" ] && [ -n "$KEYSTORE_PASSWORD" ]; then
             echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
             export SIGNING_FILE="$RUNNER_TEMP/release.jks" SIGNING_PASSWORD="$KEYSTORE_PASSWORD" SIGNING_ALIAS="${KEY_ALIAS:-chirashi}"
           fi

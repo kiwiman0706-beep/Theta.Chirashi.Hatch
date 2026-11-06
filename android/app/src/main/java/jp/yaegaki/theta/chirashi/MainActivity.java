@@ -187,6 +187,19 @@ public class MainActivity extends ComponentActivity {
     }
   }
 
+  int seenGeneration = Transfer.generation.get();
+
+  // Back from an import (TransferActivity): the records file changed under the screen.
+  @Override
+  protected void onResume() {
+    super.onResume();
+    int g = Transfer.generation.get();
+    if (g != seenGeneration) {
+      seenGeneration = g;
+      js("window.reloadData && reloadData()");
+    }
+  }
+
   boolean granted(String p) {
     return checkSelfPermission(p) == PackageManager.PERMISSION_GRANTED;
   }
@@ -660,6 +673,12 @@ public class MainActivity extends ComponentActivity {
               if (!a.optString("text").isEmpty()) i.putExtra(Intent.EXTRA_TEXT, a.optString("text"));
               i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
               startActivity(Intent.createChooser(i, "共有"));
+              reply(id, new JSONObject());
+              break;
+            }
+            case "transfer": {
+              Intent i = new Intent(MainActivity.this, TransferActivity.class).setAction("import".equals(a.optString("mode")) ? TransferActivity.IMPORT : TransferActivity.EXPORT);
+              startActivity(i);
               reply(id, new JSONObject());
               break;
             }

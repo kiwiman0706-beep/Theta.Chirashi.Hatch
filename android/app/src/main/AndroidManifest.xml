@@ -36,6 +36,28 @@
         <data android:mimeType="image/*" />
       </intent-filter>
     </activity>
+    <!-- シリーズの移行：Theta Home Hatch から書き出し・読み込みを呼ぶ（Theta.Hatch.Series docs/MIGRATION.md §3） -->
+    <activity
+        android:name=".TransferActivity"
+        android:exported="true"
+        android:theme="@style/Transparent"
+        android:excludeFromRecents="true">
+      <intent-filter>
+        <action android:name="app.thetahatch.action.EXPORT" />
+        <category android:name="android.intent.category.DEFAULT" />
+      </intent-filter>
+      <intent-filter>
+        <action android:name="app.thetahatch.action.IMPORT" />
+        <category android:name="android.intent.category.DEFAULT" />
+      </intent-filter>
+      <intent-filter>
+        <action android:name="app.thetahatch.action.IMPORT" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <data android:mimeType="application/zip" />
+        <data android:mimeType="application/x-zip-compressed" />
+        <data android:mimeType="application/octet-stream" />
+      </intent-filter>
+    </activity>
     <provider
         android:name="androidx.core.content.FileProvider"
         android:authorities="${applicationId}.files"

@@ -428,7 +428,9 @@
       '<div class="btns"><button class="btn small navy" data-act="guide">Google連携の初期設定ガイド</button></div>' +
       '<p class="hint">設定をしなくても、各チラシの「カレンダーアプリで登録」で、スマホのカレンダーアプリに内容を入れて登録できます（画像の添付はなし）。</p></div>' +
       '<div class="sec"><h2>データ</h2><p class="hint">登録件数：' + db.records.length + '件。データと画像はこのスマホの中に保存されています。</p>' +
-      '<div class="btns"><button class="btn small" data-act="backup">バックアップ（JSON）を保存</button></div></div>' +
+      '<div class="btns"><button class="btn small" data-act="export">チラシと画像を書き出す（zip）</button><button class="btn small" data-act="import">書き出しファイルから読み込む</button></div>' +
+      '<p class="hint">新しいアプリ（Theta Hatch シリーズの新しい版）へ移るときは、Theta Home Hatch の案内から自動で書き出し・読み込みができます。Home が無いときは、ここで書き出したファイルを新しいアプリの「読み込む」で選んでください。Gemini APIキーは書き出しません。</p>' +
+      '<div class="btns"><button class="btn small" data-act="backup">記録だけ JSON で保存</button></div></div>' +
       '<div class="sec"><h2>このアプリ</h2>' + row('版', inf.version || '') + row('パッケージ', inf.package || '') + '<div class="btns"><button class="btn small" data-url="https://github.com/kiwiman0706-beep/THETA.Chirashi.Hatch">GitHub（説明・新しい版）</button></div></div>' +
       '</div></div>';
   }
@@ -889,6 +891,10 @@
         return renderLayer();
       case 'pickcal':
         return pickCalendar();
+      case 'export':
+        return call('transfer', { mode: 'export' }).catch((er) => toast(er.message));
+      case 'import':
+        return call('transfer', { mode: 'import' }).catch((er) => toast(er.message));
       case 'backup':
         return call('saveFile', { name: 'theta-chirashi-backup-' + today() + '.json', type: 'application/json', text: JSON.stringify({ app: 'theta-chirashi', exported: new Date().toISOString(), records: db.records }, null, 1) })
           .then((x) => x.saved && toast('バックアップを保存しました（画像は含みません）'))
@@ -914,6 +920,15 @@
     }
   });
   window.AndroidShared = (files) => takeIn(files.map((f) => f.name), null);
+
+  // After an import (Java tells us the records file changed).
+  window.reloadData = function () {
+    load();
+    ui.stack = ui.stack.filter((l) => l.type !== 'detail' || rec(l.id));
+    renderLayer();
+    render();
+    toast('読み込んだチラシを表示しました');
+  };
 
   // ---- start -------------------------------------------------------------------------------------
   load();
