@@ -1,0 +1,28 @@
+{
+  "pages": [ { "index": 0, "kind": "flyer", "event": 0 }, { "index": 1, "kind": "map", "event": 0 }, { "index": 2, "kind": "card", "event": 0 } ],
+  "events": [ {
+    "title": "Higashi-Osaka AD Care Network Conference",
+    "subtitle": "",
+    "category": "講演会",
+    "date": "2026-11-28", "start": "17:00", "end": "18:30", "endDate": "",
+    "format": "onsite",
+    "venue": "ホテルアウィーナ大阪", "room": "3階 芙蓉", "address": "〒543-0031 大阪府大阪市天王寺区石ケ辻町19-12", "phone": "06-772-1445",
+    "access": "近鉄「大阪上本町」駅14番出口より南へ約300m（約3分）",
+    "online": { "platform": "", "url": "", "meetingId": "", "passcode": "", "note": "" },
+    "organizer": "日本イーライリリー株式会社", "cosponsor": "", "product": "ケサンラ",
+    "program": [
+      { "time": "17:00〜17:50", "kind": "ご講演", "title": "Aβプラークを早期に除去するケサンラ治療 ～卒業生を経験して見えてきたこと～",
+        "people": [ { "role": "座長", "name": "橋田 亜由美 先生", "affiliation": "医療福祉生活協同組合おおさか 東大阪生協病院 院長" },
+                    { "role": "演者", "name": "溝渕 光", "affiliation": "医療法人新松田会 愛宕病院 福島孝徳記念脳神経センター センター長・診療部長" } ] },
+      { "time": "17:50〜18:30", "kind": "ディスカッション", "title": "抗Aβ抗体薬治療における地域の連携について",
+        "people": [ { "role": "座長", "name": "隅 寿恵", "affiliation": "地方独立行政法人 市立東大阪医療センター 脳神経内科 部長" },
+                    { "role": "ディスカッサント", "name": "岡田 洋介", "affiliation": "医療法人オーエヌシー 岡田脳神経外科医院 副院長" } ] }
+    ],
+    "registration": { "required": "不明", "deadline": "", "method": "", "url": "", "contact": "" },
+    "fee": "", "credits": "",
+    "notes": [ "当日は施設名・氏名の記入あり（医薬品・医学薬学の情報提供に利用）", "講演会終了後、情報交換会あり" ],
+    "code": "VEM-JP-37298-VEM-114507",
+    "summary": "抗Aβ抗体薬ケサンラによるアルツハイマー病治療の講演と、地域連携についてのディスカッション。"
+  } ],
+  "cards": [ { "page": 2, "name": "山田 太郎", "kana": "やまだ たろう", "company": "日本イーライリリー株式会社", "department": "大阪営業所", "title": "MR", "phone": "06-0000-0000", "mobile": "090-0000-0000", "fax": "", "email": "yamada@example.com", "address": "", "url": "" } ]
+}

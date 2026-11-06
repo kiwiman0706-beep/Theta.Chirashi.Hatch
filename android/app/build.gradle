@@ -1,0 +1,48 @@
+plugins { id 'com.android.application' }
+
+// Signing: SIGNING_FILE / SIGNING_PASSWORD / SIGNING_ALIAS (CI secrets), else the development key
+// in android/signing/ (see android/README.md). Google Cloud's Android OAuth client names the
+// SHA-1 of this key; the app shows it in its setup guide.
+def signFile = System.getenv('SIGNING_FILE') ?: file('../signing/chirashi-dev.jks').path
+def signPass = System.getenv('SIGNING_PASSWORD') ?: 'chirashi-dev'
+def signAlias = System.getenv('SIGNING_ALIAS') ?: 'chirashi'
+
+android {
+    namespace 'jp.yaegaki.theta.chirashi'
+    compileSdk 35
+    buildToolsVersion "35.0.0"
+    defaultConfig {
+        applicationId 'jp.yaegaki.theta.chirashi'
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName '0.1.0'
+    }
+    signingConfigs {
+        app {
+            storeFile file(signFile)
+            storePassword signPass
+            keyAlias signAlias
+            keyPassword signPass
+        }
+    }
+    buildTypes {
+        debug { signingConfig signingConfigs.app }
+        release {
+            signingConfig signingConfigs.app
+            minifyEnabled false
+        }
+    }
+    lint { checkReleaseBuilds false; abortOnError false }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_11; targetCompatibility JavaVersion.VERSION_11 }
+}
+
+dependencies {
+    implementation platform('org.jetbrains.kotlin:kotlin-bom:1.8.22')
+    implementation 'androidx.webkit:webkit:1.12.1'
+    implementation 'androidx.core:core:1.13.1'
+    implementation 'androidx.activity:activity:1.9.3'
+    implementation 'com.google.android.gms:play-services-mlkit-document-scanner:16.0.0'
+    implementation 'com.google.android.gms:play-services-mlkit-barcode-scanning:18.3.1'
+    implementation 'com.google.android.gms:play-services-auth:21.2.0'
+}

@@ -1,0 +1,47 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <uses-permission android:name="android.permission.INTERNET" />
+  <uses-permission android:name="android.permission.CAMERA" />
+  <uses-feature android:name="android.hardware.camera" android:required="false" />
+  <queries>
+    <intent><action android:name="android.intent.action.VIEW" /><data android:scheme="https" /></intent>
+    <intent><action android:name="android.intent.action.VIEW" /><data android:scheme="geo" /></intent>
+    <intent><action android:name="android.intent.action.INSERT" /><data android:mimeType="vnd.android.cursor.item/event" /></intent>
+    <intent><action android:name="android.intent.action.INSERT" /><data android:mimeType="vnd.android.cursor.dir/raw_contact" /></intent>
+    <intent><action android:name="android.intent.action.SEND" /><data android:mimeType="image/*" /></intent>
+  </queries>
+  <application
+      android:theme="@style/AppTheme"
+      android:label="Theta Chirashi Hatch"
+      android:icon="@mipmap/ic_launcher"
+      android:roundIcon="@mipmap/ic_launcher"
+      android:allowBackup="false"
+      android:supportsRtl="true"
+      android:usesCleartextTraffic="false">
+    <meta-data android:name="com.google.mlkit.vision.DEPENDENCIES" android:value="barcode" />
+    <activity
+        android:name=".MainActivity"
+        android:exported="true"
+        android:launchMode="singleTask"
+        android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|density|uiMode"
+        android:windowSoftInputMode="adjustResize">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+      <!-- 「共有」からチラシの写真・PDFを受け取る -->
+      <intent-filter>
+        <action android:name="android.intent.action.SEND" />
+        <action android:name="android.intent.action.SEND_MULTIPLE" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <data android:mimeType="image/*" />
+      </intent-filter>
+    </activity>
+    <provider
+        android:name="androidx.core.content.FileProvider"
+        android:authorities="${applicationId}.files"
+        android:exported="false"
+        android:grantUriPermissions="true">
+      <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
+    </provider>
+  </application>
+</manifest>

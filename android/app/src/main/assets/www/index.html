@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Theta Chirashi Hatch</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><span class="logo" aria-hidden="true"></span><span>Theta Chirashi Hatch</span></div>
+    <button class="icon-btn" id="btn-settings" aria-label="設定">
+      <svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>
+    </button>
+  </header>
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="list" class="on">一覧</button>
+    <button role="tab" data-tab="cal">カレンダー</button>
+  </nav>
+  <main id="main"></main>
+  <div class="fab-row">
+    <button class="fab-sub" id="btn-pick" aria-label="写真から読み取る">
+      <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM8.5 13.5l2.5 3 3.5-4.5 4.5 6H5z"/></svg>
+    </button>
+    <button class="fab" id="btn-scan">
+      <svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M4 4h4V2H4a2 2 0 0 0-2 2v4h2zm16-2h-4v2h4v4h2V4a2 2 0 0 0-2-2zM4 16H2v4a2 2 0 0 0 2 2h4v-2H4zm16 4h-4v2h4a2 2 0 0 0 2-2v-4h-2zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/></svg>
+      <span>チラシをスキャン</span>
+    </button>
+  </div>
+  <input type="file" id="file-pick" accept="image/*" multiple hidden>
+  <div id="layer"></div>
+  <div id="busy" hidden><div class="busy-box"><div class="spinner"></div><div id="busy-text">処理中…</div></div></div>
+  <div id="toast" hidden></div>
+  <script src="core.js"></script>
+  <script src="google.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

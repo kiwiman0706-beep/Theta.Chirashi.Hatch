@@ -1,0 +1,14 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+  <!-- sheet -->
+  <path android:fillColor="#FFFFFF" android:pathData="M36,28h30l8,8v44a2,2 0,0 1,-2 2h-36a2,2 0,0 1,-2 -2v-50a2,2 0,0 1,2 -2z" />
+  <path android:fillColor="#F5C9A9" android:pathData="M66,28l8,8h-6a2,2 0,0 1,-2 -2z" />
+  <!-- headline -->
+  <path android:fillColor="#E8743B" android:pathData="M40,38h20v4h-20z" />
+  <path android:fillColor="#C9C3BC" android:pathData="M40,46h28v2.5h-28zM40,51h22v2.5h-22z" />
+  <!-- calendar badge -->
+  <path android:fillColor="#2B5F8C" android:pathData="M44,58h24a2,2 0,0 1,2 2v16a2,2 0,0 1,-2 2h-24a2,2 0,0 1,-2 -2v-16a2,2 0,0 1,2 -2z" />
+  <path android:fillColor="#FFFFFF" android:pathData="M45,64h22v11h-22z" />
+  <path android:fillColor="#E8743B" android:pathData="M53,66.5h6v6h-6z" />
+  <path android:fillColor="#2B5F8C" android:pathData="M47.5,55h3v6h-3zM61.5,55h3v6h-3z" />
+</vector>
