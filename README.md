@@ -17,18 +17,14 @@
 
 ## 入れる
 
-[Releases](https://github.com/kiwiman0706-beep/THETA.Chirashi.Hatch/releases/latest) の `ThetaChirashiHatch-<版>.apk` をスマホでダウンロードして開きます（「提供元不明のアプリ」の許可が必要です）。Android 8.0 以上。
+[Releases](https://github.com/kiwiman0706-beep/Theta.Chirashi.Hatch/releases/latest) の `ThetaChirashiHatch-<版>.apk` をスマホでダウンロードして開きます（「提供元不明のアプリ」の許可が必要です）。Android 8.0 以上。
 
 ## はじめの設定
 
 1. **Gemini APIキー**：右上の歯車 →「Gemini APIキー」に、Theta Meishi Hatch と同じキー（[Google AI Studio](https://aistudio.google.com/apikey) で作成）を入れて「キーを保存」。
-2. **Googleカレンダー（画像付きで登録する場合）**：Meishi Hatch で使っている同じ Google Cloud プロジェクトで、次を行います。アプリの 設定 →「Google連携の初期設定ガイド」に、各画面を開くボタンとコピー用の値があります。
-   - **Google Calendar API** と **Google Drive API** を有効にする
-   - OAuth 同意画面のテストユーザーに自分の Gmail（Meishi で設定済みなら不要）
-   - 「クライアントを作成」→ 種類 **Android**
-     - パッケージ名：`jp.yaegaki.theta.chirashi`
-     - SHA-1：`75:5E:7B:B7:5D:01:1D:C0:B5:A8:30:CC:CE:48:18:A2:66:D8:3B:66`（このリポジトリの開発用の鍵で署名した APK の場合。アプリの画面にも表示されます）
-   - アプリで「Googleにログイン」→ 必要なら「登録先のカレンダーを選ぶ」
+2. **Googleカレンダー（画像付きで登録する場合）**：設定の「Googleにログイン」でアカウントを選ぶだけです。このアプリ（`app.thetahatch.chirashi`）はシリーズの Google Cloud プロジェクトに、シリーズ共通の署名鍵の SHA-1 で登録済みです（Calendar API・Drive API も有効）。うまくいかないときは 設定 →「Google連携の初期設定ガイド」。
+
+Theta Home Hatch（または KidsHome Hatch）が入っていれば、スキン・Gemini のモデル・Google アカウント・Gemini APIキーをそこから受け取れます。
 
 求める許可は、カレンダーの予定の作成・変更（`calendar.events`）、カレンダー一覧の参照（`calendar.calendarlist.readonly`）、このアプリが作ったドライブのファイルだけ（`drive.file`）です。
 
@@ -62,10 +58,19 @@ node --test test/core.test.js
 NODE_PATH=$(npm root -g) node test/ui.e2e.cjs
 ```
 
-署名：リポジトリの Secrets（`ANDROID_KEYSTORE_B64`・`ANDROID_KEYSTORE_PASSWORD`・`ANDROID_KEY_ALIAS`）があればその鍵、無ければ開発用の鍵 `android/signing/chirashi-dev.jks`（パスワード `chirashi-dev`）で署名します。シリーズ共通の鍵に替えると SHA-1 が変わるので、Google Cloud の Android クライアントもその SHA-1 で作り直してください（アプリも入れ直し）。
+署名：Release はシリーズ共通の鍵（Secrets の `ANDROID_KEYSTORE_B64`・`ANDROID_KEYSTORE_PASSWORD`・`ANDROID_KEY_ALIAS`・`ANDROID_KEY_PASSWORD`、Theta.Hatch.Series の `secrets/README.md`）で署名します。Secrets が無いと Release は失敗します。手元のビルドは Android のデバッグ鍵になり、Google ログインはできません。
+
+## 移行（0.1 → 0.2）
+
+0.1（`jp.yaegaki.theta.chirashi`、開発用の鍵）から 0.2（`app.thetahatch.chirashi`、共通鍵）へは、Theta Home Hatch がまとめて移します（Theta.Hatch.Series `docs/MIGRATION.md` §3）。
+
+| | |
+| --- | --- |
+| 橋渡し版 | 0.1.1（タグ `v0.1.1`）。`Intent("app.thetahatch.action.EXPORT")` で確認の画面 → zip に書き出し。結果を受け取る形で呼ばれたら、zip（`content://`、読み取り許可付き、`application/zip`）を `RESULT_OK` の data で返す。extras：`app`=`chirashi`・`format`=`chirashi-export@1`・`records`・`images` |
+| 新しい版 | 0.2.0〜。`Intent("app.thetahatch.action.IMPORT")`（data か `EXTRA_STREAM` に zip、読み取り許可付き）→ 確認の画面 → 読み込み。`RESULT_OK` で extras `records`・`images`、失敗は `RESULT_CANCELED` と `error` |
+| zip の中身 | `manifest.json`・`data.json`（記録と設定。Gemini APIキーは入れない）・`media/<名前>.jpg`（チラシ画像） |
 
 ## まだのこと
 
 - 実機での確認（画面と処理はブラウザの自動テストで確認済み）
-- Theta Vault（Google ドライブ上の Markdown フォルダ）との同期、Windows / Mac / Web 版、ホーム画面ウィジェット、アプリ内更新（シリーズ共通仕様のうち未対応のもの）
-- 他のシリーズアプリからの Gemini APIキーの引き継ぎ（同じ署名鍵が必要）
+- Theta Vault（Google ドライブ上の Markdown フォルダ）との同期、Windows / Mac / Web 版、ホーム画面ウィジェット

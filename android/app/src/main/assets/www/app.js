@@ -35,8 +35,46 @@
     } catch (e) {
       toast('データを読み込めませんでした：' + e.message);
     }
-    db.settings = Object.assign({ model: 'gemini-2.5-flash', calendarId: 'primary', calendarName: '' }, db.settings);
+    db.settings = Object.assign({ model: 'gemini-2.5-flash', calendarId: 'primary', calendarName: '', skin: 'system' }, db.settings);
+    db.settings.follow = Object.assign({ 'ui.skin': true, 'gemini.model': true, 'google.account': true }, db.settings.follow);
   }
+
+  // ---- the series hub (Theta Home Hatch / KidsHome Hatch): shared settings ----------------------
+  const SKINS = { system: '端末に合わせる', dark: 'ダーク', light: 'ライト', pop: 'POP', alert: 'ALERT', scifi: 'SCI-FI' };
+  let hub = {};
+  function readHub() {
+    try {
+      hub = JSON.parse(N.hubInfo ? N.hubInfo() : '{}') || {};
+    } catch (e) {
+      hub = {};
+    }
+    const v = hub.values || {};
+    const s = db.settings;
+    let changed = false;
+    if (s.follow['gemini.model'] && v['gemini.model'] && v['gemini.model'] !== s.model) (s.model = v['gemini.model']), (changed = true);
+    if (s.follow['google.account'] && v['google.account'] && !s.email) (s.email = v['google.account']), (changed = true);
+    if (changed) save();
+  }
+  function hubValue(key) {
+    return (hub.values || {})[key] || '';
+  }
+  // A setting changed here goes back to the hub when it follows the series.
+  function shareBack(key, value) {
+    if (hub.hub && db.settings.follow[key] && N.hubWrite) N.hubWrite(hub.hub, key, value);
+  }
+  function skinNow() {
+    const s = db.settings;
+    const v = s.follow['ui.skin'] && SKINS[hubValue('ui.skin')] ? hubValue('ui.skin') : s.skin;
+    return SKINS[v] ? v : 'system';
+  }
+  function applySkin() {
+    document.documentElement.dataset.thetaSkin = skinNow();
+    const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+    const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(bg);
+    const dark = m ? 0.299 * parseInt(m[1], 16) + 0.587 * parseInt(m[2], 16) + 0.114 * parseInt(m[3], 16) < 128 : false;
+    if (N.chrome && bg) N.chrome(bg, dark);
+  }
+  if (window.matchMedia) window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => applySkin());
   function save() {
     const err = N.saveData(JSON.stringify(db));
     if (err) toast('保存できませんでした：' + err);
@@ -167,6 +205,7 @@
       '<div class="toolbar"><input class="search" id="q" type="search" placeholder="検索（会の名前・会場・先生・製品・会社…）" value="' + esc(ui.q) + '">' +
       '<div class="chips">' + chips.map(([k, l]) => '<button class="chip' + (ui.filter === k ? ' on' : '') + '" data-filter="' + k + '">' + l + '</button>').join('') + '</div></div>';
     if (!db.records.length) {
+      html += '<div class="sec"><h2>前の版から移る</h2><p class="hint">Theta Chirashi Hatch 0.1 を使っていた場合は、Theta Home Hatch の「新しいアプリに移る」案内で自動で移せます。前の版で書き出した zip があれば、ここから読み込めます。</p><div class="btns"><button class="btn small" data-act="import">書き出しファイルから読み込む</button></div></div>';
       html += '<div class="empty"><div class="big">📄</div><p>まだチラシがありません。<br>右下の「チラシをスキャン」から、勉強会やイベントのチラシを撮影してください。<br>地図の面や、一緒にもらった名刺も同時にスキャンできます。</p>' +
         (N.secretGet() ? '' : '<p><button class="btn primary" data-act="settings">最初に Gemini APIキーを設定</button></p>') + '</div>';
     } else if (!list.length) {
@@ -417,35 +456,70 @@
     return '<div class="sheet">' + head('設定') + '<div class="sheet-body">' +
       '<div class="sec"><h2>Gemini（チラシの読み取り）</h2>' +
       '<div class="field"><label>Gemini APIキー</label><input id="s-key" type="password" autocomplete="off" value="' + esc(key) + '" placeholder="AIza…"></div>' +
+      (hub.hub && hubValue('gemini.key') !== 'none' ? '<div class="btns"><button class="btn small navy" data-act="hubkey">' + esc(hub.label || 'Home Hatch') + ' のキーを使う</button></div>' : '') +
       '<div class="btns"><button class="btn small" data-act="savekey">キーを保存</button><button class="btn small" data-act="showkey">表示</button><button class="btn small" data-url="https://aistudio.google.com/apikey">Google AI Studioでキーを作る</button></div>' +
       '<div class="field"><label>モデル</label><input id="s-model" list="models" value="' + esc(s.model) + '"><datalist id="models">' + (s.models || ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.5-flash-lite']).map((m) => '<option value="' + esc(m) + '">').join('') + '</datalist></div>' +
+      follow('gemini.model', 'モデル') +
       '<div class="btns"><button class="btn small" data-act="savemodel">モデルを保存</button><button class="btn small" data-act="models">使えるモデルの一覧を取得</button></div>' +
       '<p class="hint">Theta Meishi Hatch と同じキーで使えます（キーはこのスマホの中だけに暗号化して保存）。チラシ1件の読み取りは、無料枠の範囲で数回分のリクエストです。</p></div>' +
+      '<div class="sec"><h2>見た目（スキン）</h2><div class="field"><select id="s-skin">' + Object.keys(SKINS).map((k) => '<option value="' + k + '"' + (k === s.skin ? ' selected' : '') + '>' + SKINS[k] + '</option>').join('') + '</select></div>' +
+      follow('ui.skin', 'スキン') + '</div>' +
       '<div class="sec"><h2>Googleカレンダー</h2>' +
       row('アカウント', s.email || '未ログイン') + row('登録先', s.calendarName || (s.calendarId === 'primary' ? 'メインのカレンダー' : s.calendarId)) +
       '<div class="btns"><button class="btn small primary" data-act="login">' + (s.email ? 'アカウントを切り替え' : 'Googleにログイン') + '</button><button class="btn small" data-act="pickcal">登録先のカレンダーを選ぶ</button>' + (s.email ? '<button class="btn small" data-act="logout">ログアウト</button>' : '') + '</div>' +
-      '<p class="hint">チラシの画像はGoogleドライブの「Theta Chirashi Hatch」フォルダに保存され、予定に添付されます。ログインには、Google CloudにこのアプリのAndroid用クライアントを1回登録する必要があります。</p>' +
+      follow('google.account', 'Googleアカウント') +
+      '<p class="hint">チラシの画像はGoogleドライブの「Theta Chirashi Hatch」フォルダに保存され、予定に添付されます。このアプリはシリーズの Google Cloud プロジェクトに登録済みなので、そのままログインできます。</p>' +
       '<div class="btns"><button class="btn small navy" data-act="guide">Google連携の初期設定ガイド</button></div>' +
       '<p class="hint">設定をしなくても、各チラシの「カレンダーアプリで登録」で、スマホのカレンダーアプリに内容を入れて登録できます（画像の添付はなし）。</p></div>' +
       '<div class="sec"><h2>データ</h2><p class="hint">登録件数：' + db.records.length + '件。データと画像はこのスマホの中に保存されています。</p>' +
       '<div class="btns"><button class="btn small" data-act="export">チラシと画像を書き出す（zip）</button><button class="btn small" data-act="import">書き出しファイルから読み込む</button></div>' +
-      '<p class="hint">新しいアプリ（Theta Hatch シリーズの新しい版）へ移るときは、Theta Home Hatch の案内から自動で書き出し・読み込みができます。Home が無いときは、ここで書き出したファイルを新しいアプリの「読み込む」で選んでください。Gemini APIキーは書き出しません。</p>' +
+      '<p class="hint">別のスマホへ移すときや、バックアップに使えます。Theta Home Hatch の移行の案内からも、書き出し・読み込みができます。Gemini APIキーは書き出しません。</p>' +
       '<div class="btns"><button class="btn small" data-act="backup">記録だけ JSON で保存</button></div></div>' +
-      '<div class="sec"><h2>このアプリ</h2>' + row('版', inf.version || '') + row('パッケージ', inf.package || '') + '<div class="btns"><button class="btn small" data-url="https://github.com/kiwiman0706-beep/THETA.Chirashi.Hatch">GitHub（説明・新しい版）</button></div></div>' +
+      '<div class="sec"><h2>このアプリ</h2>' + row('版', inf.version || '') + row('パッケージ', inf.package || '') + row('新しい版', ui.latest || '') +
+      '<div class="btns"><button class="btn small" data-act="checkupdate">更新を確認</button>' + (ui.latestNewer ? '<button class="btn small primary" data-act="update">更新する</button>' : '') + '<button class="btn small" data-url="' + REPO + '">説明（GitHub）</button></div>' +
+      '<p class="hint">更新は Theta Home Hatch（または KidsHome Hatch）がまとめて行います。どちらも無いときは、Releases のページを開きます。</p></div>' +
+      (hub.hub ? '<div class="sec"><h2>Hatch シリーズ</h2>' + row('共通設定', hub.label + ' から受け取っています') + '</div>' : '') +
       '</div></div>';
+  }
+  function follow(key, what) {
+    if (!hub.hub) return '';
+    return '<label class="follow"><input type="checkbox" data-follow="' + key + '"' + (db.settings.follow[key] ? ' checked' : '') + '> ' + what + 'をシリーズに合わせる（' + esc(hub.label) + '）</label>';
+  }
+  const REPO = 'https://github.com/kiwiman0706-beep/Theta.Chirashi.Hatch';
+  function newer(a, b) {
+    const x = String(a).split(/[.-]/).map((n) => parseInt(n, 10) || 0), y = String(b).split(/[.-]/).map((n) => parseInt(n, 10) || 0);
+    for (let i = 0; i < Math.max(x.length, y.length); i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0);
+    return false;
+  }
+  async function checkUpdate() {
+    try {
+      busy('新しい版を確認しています…');
+      const res = await fetch('https://api.github.com/repos/kiwiman0706-beep/Theta.Chirashi.Hatch/releases/latest', { headers: { Accept: 'application/vnd.github+json' } });
+      if (!res.ok) throw new Error('確認できませんでした（HTTP ' + res.status + '）');
+      const j = await res.json();
+      const v = String(j.tag_name || '').replace(/^v/, '');
+      ui.latest = v;
+      ui.latestNewer = newer(v, info().version || '0');
+      busy(null);
+      toast(ui.latestNewer ? '新しい版 ' + v + ' があります' : '最新の版です（' + v + '）');
+    } catch (e) {
+      busy(null);
+      toast(e.message);
+    }
+    renderLayer();
   }
   function guideHtml() {
     const inf = info();
     const step = (t, body) => '<li><b>' + t + '</b><div>' + body + '</div></li>';
     const open = (u, l) => '<button class="btn small" data-url="' + u + '">' + l + '</button>';
     return '<div class="sheet">' + head('Google連携の初期設定ガイド') + '<div class="sheet-body"><div class="sec">' +
-      '<p>Theta Meishi Hatch などで使っている<b>同じGoogle Cloudプロジェクト</b>に、このアプリ用の「Android」クライアントを追加します（初めてなら1〜3も行います）。</p><ol class="steps">' +
+      '<p>このアプリ（<span class="mono">' + esc(inf.package) + '</span>）は、シリーズの Google Cloud プロジェクトに Android 用クライアントを<b>登録済み</b>です（シリーズ共通の署名鍵で署名した版）。ログインできないときだけ、次を確かめてください。</p><ol class="steps">' +
       step('プロジェクトを開く（なければ作る）', open('https://console.cloud.google.com/projectselector2/home/dashboard', 'Google Cloud を開く')) +
       step('APIを有効にする（2つ）', '<div class="btns">' + open('https://console.cloud.google.com/apis/library/calendar-json.googleapis.com', 'Google Calendar API') + open('https://console.cloud.google.com/apis/library/drive.googleapis.com', 'Google Drive API') + '</div>') +
       step('OAuth同意画面（Meishiで設定済みなら不要）', 'ユーザーの種類「外部」、公開ステータス「テスト」で、テストユーザーに自分のGmailを追加。<div class="btns">' + open('https://console.cloud.google.com/auth/audience', '対象（テストユーザー）') + '</div>') +
-      step('Android用のOAuthクライアントを作る', '「クライアントを作成」→ 種類「Android」に、次の2つを貼り付けます。<div class="field"><label>パッケージ名</label><div class="mono">' + esc(inf.package) + '</div><button class="btn small" data-copy="' + esc(inf.package) + '">コピー</button></div><div class="field"><label>SHA-1 証明書フィンガープリント</label><div class="mono">' + esc(inf.sha1) + '</div><button class="btn small" data-copy="' + esc(inf.sha1) + '">コピー</button></div><div class="btns">' + open('https://console.cloud.google.com/auth/clients/create', 'クライアントを作成') + '</div>') +
+      step('Android用のOAuthクライアント（登録済みのはず）', '「クライアント」の一覧に、次のパッケージ名と SHA-1 の Android クライアントがあるか確かめます。無ければ「クライアントを作成」→ 種類「Android」に貼り付けます。<div class="field"><label>パッケージ名</label><div class="mono">' + esc(inf.package) + '</div><button class="btn small" data-copy="' + esc(inf.package) + '">コピー</button></div><div class="field"><label>SHA-1 証明書フィンガープリント</label><div class="mono">' + esc(inf.sha1) + '</div><button class="btn small" data-copy="' + esc(inf.sha1) + '">コピー</button></div><div class="btns">' + open('https://console.cloud.google.com/auth/clients/create', 'クライアントを作成') + '</div>') +
       step('アプリでログイン', '数分待ってから、設定の「Googleにログイン」でアカウントを選び、カレンダーとドライブ（このアプリが作ったファイルだけ）へのアクセスを許可します。<div class="btns"><button class="btn small primary" data-act="login">Googleにログイン</button></div>') +
-      '</ol><p class="hint">クライアントIDをアプリに入力する必要はありません。「許可を中止しました」と出るときは、たいてい4のパッケージ名・SHA-1の違いか、3のテストユーザー未登録です。</p></div></div></div>';
+      '</ol><p class="hint">クライアントIDをアプリに入力する必要はありません。「許可を中止しました」と出るときは、たいてい4のパッケージ名・SHA-1の違い（共通鍵で署名していない手元のビルドなど）か、3のテストユーザー未登録です。</p></div></div></div>';
   }
 
   // ---- dialogs --------------------------------------------------------------------------------
@@ -633,6 +707,7 @@
       await token(true, true);
       busy(null);
       toast('ログインしました：' + db.settings.email);
+      shareBack('google.account', db.settings.email);
       renderLayer();
     } catch (e) {
       busy(null);
@@ -768,6 +843,7 @@
       return;
     }
     if (t.dataset.copy) return copy(t.dataset.copy);
+    if (t.dataset.follow) return;
     if (t.dataset.tab) return setTab(t.dataset.tab);
     if (t.dataset.filter) {
       ui.filter = t.dataset.filter;
@@ -870,6 +946,7 @@
       case 'savemodel':
         db.settings.model = $('#s-model').value.trim() || 'gemini-2.5-flash';
         save();
+        shareBack('gemini.model', db.settings.model);
         return toast('モデルを保存しました：' + db.settings.model);
       case 'models':
         try {
@@ -891,6 +968,19 @@
         return renderLayer();
       case 'pickcal':
         return pickCalendar();
+      case 'hubkey':
+        try {
+          await call('hubSecret', { hub: hub.hub });
+          toast(hub.label + ' の Gemini APIキーを使います');
+          renderLayer();
+        } catch (er) {
+          toast(er.message);
+        }
+        return;
+      case 'checkupdate':
+        return checkUpdate();
+      case 'update':
+        return call('update', {}).then((r) => toast(r.hub ? r.hub + ' の更新画面を開きました' : 'Releases のページを開きました')).catch((er) => toast(er.message));
       case 'export':
         return call('transfer', { mode: 'export' }).catch((er) => toast(er.message));
       case 'import':
@@ -902,6 +992,21 @@
     }
   });
 
+  document.addEventListener('change', (e) => {
+    const t = e.target;
+    if (t.id === 's-skin') {
+      db.settings.skin = t.value;
+      save();
+      shareBack('ui.skin', t.value);
+      applySkin();
+    } else if (t.dataset && t.dataset.follow) {
+      db.settings.follow[t.dataset.follow] = t.checked;
+      save();
+      readHub();
+      applySkin();
+      renderLayer();
+    }
+  });
   $('#btn-scan').addEventListener('click', () => scan(null));
   $('#btn-pick').addEventListener('click', () => pick(null));
   $('#btn-settings').addEventListener('click', () => push({ type: 'settings' }));
@@ -932,6 +1037,8 @@
 
   // ---- start -------------------------------------------------------------------------------------
   load();
+  readHub();
+  applySkin();
   // A reading cut off by closing the app: offer to read again.
   db.records.forEach((r) => {
     if (r.status === 'reading') {

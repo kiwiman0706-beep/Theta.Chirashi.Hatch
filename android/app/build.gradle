@@ -1,35 +1,36 @@
 plugins { id 'com.android.application' }
 
-// Signing: SIGNING_FILE / SIGNING_PASSWORD / SIGNING_ALIAS (CI secrets), else the development key
-// in android/signing/ (see android/README.md). Google Cloud's Android OAuth client names the
-// SHA-1 of this key; the app shows it in its setup guide.
-def signFile = System.getenv('SIGNING_FILE') ?: file('../signing/chirashi-dev.jks').path
-def signPass = System.getenv('SIGNING_PASSWORD') ?: 'chirashi-dev'
-def signAlias = System.getenv('SIGNING_ALIAS') ?: 'chirashi'
+// Signing: the Theta Hatch series key (Theta.Hatch.Series secrets/README.md), handed to the build
+// by release.yml from the secrets ANDROID_KEYSTORE_B64 / _PASSWORD / ANDROID_KEY_ALIAS /
+// ANDROID_KEY_PASSWORD as SIGNING_FILE / SIGNING_PASSWORD / SIGNING_ALIAS / SIGNING_KEY_PASSWORD.
+// Without them (a local build) the APK gets the Android debug key: fine for trying the screen,
+// but Google login only works with the series key (its SHA-1 is registered in Google Cloud).
+def signFile = System.getenv('SIGNING_FILE')
 
 android {
-    namespace 'jp.yaegaki.theta.chirashi'
+    namespace 'app.thetahatch.chirashi'
     compileSdk 35
     buildToolsVersion "35.0.0"
     defaultConfig {
-        applicationId 'jp.yaegaki.theta.chirashi'
+        applicationId 'app.thetahatch.chirashi'
         minSdk 26
         targetSdk 35
-        versionCode 2
-        versionName '0.1.1'
+        versionCode 3
+        versionName '0.2.0'
     }
     signingConfigs {
-        app {
-            storeFile file(signFile)
-            storePassword signPass
-            keyAlias signAlias
-            keyPassword signPass
+        if (signFile) {
+            series {
+                storeFile file(signFile)
+                storePassword System.getenv('SIGNING_PASSWORD')
+                keyAlias System.getenv('SIGNING_ALIAS')
+                keyPassword System.getenv('SIGNING_KEY_PASSWORD') ?: System.getenv('SIGNING_PASSWORD')
+            }
         }
     }
     buildTypes {
-        debug { signingConfig signingConfigs.app }
         release {
-            signingConfig signingConfigs.app
+            signingConfig signFile ? signingConfigs.series : signingConfigs.debug
             minifyEnabled false
         }
     }

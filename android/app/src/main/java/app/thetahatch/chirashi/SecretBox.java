@@ -1,4 +1,4 @@
-package jp.yaegaki.theta.chirashi;
+package app.thetahatch.chirashi;
 
 import android.content.*;
 import android.security.keystore.*;

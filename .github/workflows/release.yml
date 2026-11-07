@@ -1,8 +1,8 @@
 # Push a tag like v0.1.0, or run it by hand (Actions → Release → Run workflow: the tag is made from
 # versionName) → tests, then the APK, published as a GitHub Release.
-# 0.1.x (the old ID jp.yaegaki.theta.chirashi, up to the migration bridge 0.1.1) is signed with the
-# development key in android/signing/, so it can update the installed app. From 0.2.0
-# (app.thetahatch.chirashi) the series key from the secrets is required.
+# Signed with the Theta Hatch series key from the secrets ANDROID_KEYSTORE_B64 /
+# ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_ALIAS / ANDROID_KEY_PASSWORD (required).
+# 0.1.x (old ID, development key) was the migration bridge; its last version is the tag v0.1.1.
 name: Release
 
 on:
@@ -39,22 +39,27 @@ jobs:
           npm install -g playwright@1.56.1
           npx playwright install --with-deps chromium
           NODE_PATH="$(npm root -g)" node test/ui.e2e.cjs
-      - name: APK
+      - name: APK (signed with the series key)
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          if grep -q "applicationId 'jp.yaegaki.theta.chirashi'" android/app/build.gradle; then
-            echo "Old ID (bridge): development key"
-          elif [ -n "$KEYSTORE_B64" ] && [ -n "$KEYSTORE_PASSWORD" ]; then
-            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
-            export SIGNING_FILE="$RUNNER_TEMP/release.jks" SIGNING_PASSWORD="$KEYSTORE_PASSWORD" SIGNING_ALIAS="${KEY_ALIAS:-chirashi}"
+          if [ -z "$KEYSTORE_B64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ]; then
+            echo "::error::ANDROID_KEYSTORE_B64 / ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_ALIAS are not set"
+            exit 1
           fi
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          export SIGNING_FILE="$RUNNER_TEMP/release.jks" SIGNING_PASSWORD="$KEYSTORE_PASSWORD" SIGNING_ALIAS="$KEY_ALIAS" SIGNING_KEY_PASSWORD="${KEY_PASSWORD:-$KEYSTORE_PASSWORD}"
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0" > /dev/null
-          cd android && ./gradlew :app:assembleRelease --no-daemon
-          cp app/build/outputs/apk/release/app-release.apk "../ThetaChirashiHatch-${{ steps.v.outputs.version }}.apk"
+          (cd android && ./gradlew :app:assembleRelease --no-daemon)
           rm -f "$RUNNER_TEMP/release.jks"
+          apk=android/app/build/outputs/apk/release/app-release.apk
+          # The series key (Theta.Hatch.Series secrets/README.md)
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "$apk" | tee certs.txt
+          grep -qi "SHA-1 digest: a113ea3483605632e7f5944e4e8c2055ddae28ba" certs.txt
+          cp "$apk" "ThetaChirashiHatch-${{ steps.v.outputs.version }}.apk"
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}

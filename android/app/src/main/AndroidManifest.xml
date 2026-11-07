@@ -2,7 +2,14 @@
   <uses-permission android:name="android.permission.INTERNET" />
   <uses-permission android:name="android.permission.CAMERA" />
   <uses-feature android:name="android.hardware.camera" android:required="false" />
+  <!-- シリーズの共通設定（ハブの ContentProvider）。同じ署名鍵のアプリだけに許される。
+       インストールの順番によらず許可されるよう、ハブと同じ定義をこのアプリも持つ -->
+  <permission android:name="app.thetahatch.permission.SHARE" android:protectionLevel="signature" />
+  <uses-permission android:name="app.thetahatch.permission.SHARE" />
   <queries>
+    <!-- 設定・更新のハブ -->
+    <package android:name="app.thetahatch.home" />
+    <package android:name="app.thetahatch.kidshome" />
     <intent><action android:name="android.intent.action.VIEW" /><data android:scheme="https" /></intent>
     <intent><action android:name="android.intent.action.VIEW" /><data android:scheme="geo" /></intent>
     <intent><action android:name="android.intent.action.INSERT" /><data android:mimeType="vnd.android.cursor.item/event" /></intent>
@@ -27,6 +34,11 @@
       <intent-filter>
         <action android:name="android.intent.action.MAIN" />
         <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+      <!-- Theta Hatch シリーズのアプリの印 -->
+      <intent-filter>
+        <action android:name="app.thetahatch.HATCH" />
+        <category android:name="android.intent.category.DEFAULT" />
       </intent-filter>
       <!-- 「共有」からチラシの写真・PDFを受け取る -->
       <intent-filter>

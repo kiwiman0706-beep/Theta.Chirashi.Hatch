@@ -63,8 +63,11 @@ function sampleJpeg(i) {
     const reply = (id, d) => setTimeout(() => window.AndroidReply(id, d), 30);
     window.__opened = [];
     window.AndroidNative = {
-      info: () => JSON.stringify({ version: '0.1.0', package: 'jp.yaegaki.theta.chirashi', sha1: '75:5E:7B:B7' }),
+      info: () => JSON.stringify({ version: '0.1.0', package: 'app.thetahatch.chirashi', sha1: 'A1:13:EA:34' }),
       secretGet: () => key,
+      hubInfo: () => JSON.stringify({ hub: 'app.thetahatch.home', label: 'Theta Home Hatch', values: { 'ui.skin': 'pop', 'gemini.model': 'gemini-2.5-flash', 'google.account': 'me@example.com' } }),
+      hubWrite: (h, k, v) => (window.__hubWrites = (window.__hubWrites || []).concat([k + '=' + v])),
+      chrome: (c, d) => (window.__chrome = c + (d ? ' dark' : ' light')),
       secretSet: (v) => (key = v),
       loadData: () => data,
       saveData: (j) => ((data = j), ''),
@@ -75,6 +78,9 @@ function sampleJpeg(i) {
         const a = JSON.parse(json);
         if (method === 'scan') return reply(id, { files: [{ name: 'p1.jpg', path: 'incoming/p1.jpg' }, { name: 'p2.jpg', path: 'incoming/p2.jpg' }, { name: 'p3.jpg', path: 'incoming/p3.jpg' }] });
         if (method === 'qr') return reply(id, { codes: [] });
+        if (method === 'hubSecret') return (key = 'AIzaFROMHUB'), reply(id, { ok: true });
+        if (method === 'update') return reply(id, { hub: 'Theta Home Hatch' });
+        if (method === 'transfer') return window.__opened.push('transfer ' + a.mode), reply(id, {});
         if (method === 'token') return reply(id, { token: 't', email: 'me@example.com' });
         if (method === 'openUrl' || method === 'calendarIntent' || method === 'contactIntent' || method === 'copyText' || method === 'share') {
           window.__opened.push(method + ' ' + (a.url || a.title || a.name || ''));
@@ -84,7 +90,9 @@ function sampleJpeg(i) {
       }
     };
   });
+  await page.route('https://api.github.com/**', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ tag_name: 'v0.3.0' }) }));
   await page.goto('https://app.test/index.html');
+  if ((await page.getAttribute('html', 'data-theta-skin')) !== 'pop') throw new Error('hub skin not applied');
   await page.waitForSelector('.empty');
   if (shots) await page.screenshot({ path: path.join(shots, '0-empty.png') });
 
@@ -93,6 +101,16 @@ function sampleJpeg(i) {
   await page.fill('#s-key', 'AIzaTEST');
   await page.click('[data-act=savekey]');
   if (shots) await page.screenshot({ path: path.join(shots, '5-settings.png') });
+  await page.click('[data-act=hubkey]');
+  await page.click('[data-act=checkupdate]');
+  await page.waitForSelector('[data-act=update]');
+  await page.click('[data-act=update]');
+  // a skin of this app's own
+  await page.uncheck('[data-follow="ui.skin"]');
+  await page.selectOption('#s-skin', 'dark');
+  if ((await page.getAttribute('html', 'data-theta-skin')) !== 'dark') throw new Error('own skin not applied');
+  if (!/dark$/.test(await page.evaluate(() => window.__chrome))) throw new Error('bars not dark');
+  await page.click('[data-act=export]');
   await page.click('[data-act=guide]');
   await page.waitForSelector('text=SHA-1 証明書フィンガープリント');
   await page.click('[data-act=back]');
@@ -150,6 +168,12 @@ function sampleJpeg(i) {
   await page.waitForSelector('.day-title:has-text("11月28日")');
   if (!(await page.$('.cell .ev'))) throw new Error('no event in the month grid');
   if (shots) await page.screenshot({ path: path.join(shots, '3-calendar.png') });
+  for (const skin of ['light', 'pop', 'alert', 'scifi', 'dark']) {
+    await page.evaluate((k) => (document.documentElement.dataset.thetaSkin = k), skin);
+    await page.click('[data-tab=list]');
+    if (shots) await page.screenshot({ path: path.join(shots, '4-list-' + skin + '.png') });
+    await page.click('[data-tab=cal]');
+  }
   for (const w of [320, 768]) {
     await page.setViewportSize({ width: w, height: 800 });
     const o = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

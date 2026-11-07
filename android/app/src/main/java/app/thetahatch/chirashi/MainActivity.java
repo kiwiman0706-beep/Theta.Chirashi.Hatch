@@ -1,4 +1,4 @@
-package jp.yaegaki.theta.chirashi;
+package app.thetahatch.chirashi;
 
 import android.Manifest;
 import android.accounts.Account;
@@ -489,6 +489,34 @@ public class MainActivity extends ComponentActivity {
       }
     }
 
+    // The series hub's shared settings (skin, Gemini model, Google account), or {} without a hub.
+    @JavascriptInterface
+    public String hubInfo() {
+      return Hub.info(MainActivity.this).toString();
+    }
+
+    @JavascriptInterface
+    public void hubWrite(String hub, String key, String value) {
+      work.execute(() -> Hub.writeBack(MainActivity.this, hub, key, value));
+    }
+
+    // Bars around the page in the skin's background colour.
+    @JavascriptInterface
+    public void chrome(String color, boolean dark) {
+      main.post(() -> {
+        try {
+          int c = Color.parseColor(color);
+          getWindow().setStatusBarColor(c);
+          getWindow().setNavigationBarColor(c);
+          web.setBackgroundColor(c);
+          int flags = getWindow().getDecorView().getSystemUiVisibility();
+          int light = android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+          getWindow().getDecorView().setSystemUiVisibility(dark ? flags & ~light : flags | light);
+        } catch (Exception ignored) {
+        }
+      });
+    }
+
     @JavascriptInterface
     public String secretGet() {
       try {
@@ -676,6 +704,17 @@ public class MainActivity extends ComponentActivity {
               reply(id, new JSONObject());
               break;
             }
+            case "hubSecret": {
+              // The user chose "use the hub's key": copied into this app's own encrypted store.
+              String v = Hub.secret(MainActivity.this, a.optString("hub"), "gemini.key");
+              if (v == null || v.isEmpty()) throw new Exception("ハブに Gemini APIキーがありません");
+              SecretBox.save(MainActivity.this, v);
+              reply(id, new JSONObject().put("ok", true));
+              break;
+            }
+            case "update":
+              reply(id, new JSONObject().put("hub", Hub.update(MainActivity.this)));
+              break;
             case "transfer": {
               Intent i = new Intent(MainActivity.this, TransferActivity.class).setAction("import".equals(a.optString("mode")) ? TransferActivity.IMPORT : TransferActivity.EXPORT);
               startActivity(i);

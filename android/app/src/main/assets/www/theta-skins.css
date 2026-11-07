@@ -1,0 +1,172 @@
+/* 生成ファイル：tools/gen_skins.py で design/skins/skins.json から作る。手で直さない。
+   <html data-theta-skin="dark|light|pop|alert|scifi|system">（html 以外の要素に付けてもその中だけ切り替わる）。無い・system は端末のダーク／ライトに合わせる。
+   書体：<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;600&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+   （アプリに同梱するときは design/hud-kit/compose/res/font/ の ttf とライセンスを使う） */
+:root {
+  --bg: #F4F3EE;
+  --panel: #FFFFFF;
+  --raised: #E9E8E2;
+  --fg: #121212;
+  --muted: #474747;
+  --faint: #5E5E5E;
+  --line: #BDBCB4;
+  --accent: #B8400C;
+  --on-accent: #FFFFFF;
+  --widget: #121212;
+  --launch: #6A6A6A;
+  --zebra: rgba(0,0,0,0.051);
+  --accent2: #B8400C;
+  --accent3: #B8400C;
+  --radius: 0;
+  --line-width: 1px;
+  --hazard: 4px;
+  --display: "Oswald", "Noto Sans JP", sans-serif;
+  --mono: "Share Tech Mono", ui-monospace, "Noto Sans JP", monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theta-skin]), :root[data-theta-skin="system"] {
+    --bg: #0A0A0B;
+    --panel: #111113;
+    --raised: #19191C;
+    --fg: #EDEDED;
+    --muted: #A3A3A3;
+    --faint: #858585;
+    --line: #333336;
+    --accent: #FF6B1A;
+    --on-accent: #0A0A0B;
+    --widget: #EDEDED;
+    --launch: #7A7A7E;
+    --zebra: rgba(255,255,255,0.059);
+    --accent2: #FF6B1A;
+    --accent3: #FF6B1A;
+    --radius: 0;
+    --line-width: 1px;
+    --hazard: 4px;
+    --display: "Oswald", "Noto Sans JP", sans-serif;
+    --mono: "Share Tech Mono", ui-monospace, "Noto Sans JP", monospace;
+    color-scheme: dark;
+  }
+}
+[data-theta-skin="dark"] {
+  --bg: #0A0A0B;
+  --panel: #111113;
+  --raised: #19191C;
+  --fg: #EDEDED;
+  --muted: #A3A3A3;
+  --faint: #858585;
+  --line: #333336;
+  --accent: #FF6B1A;
+  --on-accent: #0A0A0B;
+  --widget: #EDEDED;
+  --launch: #7A7A7E;
+  --zebra: rgba(255,255,255,0.059);
+  --accent2: #FF6B1A;
+  --accent3: #FF6B1A;
+  --radius: 0;
+  --line-width: 1px;
+  --hazard: 4px;
+  --display: "Oswald", "Noto Sans JP", sans-serif;
+  --mono: "Share Tech Mono", ui-monospace, "Noto Sans JP", monospace;
+  color-scheme: dark;
+}
+[data-theta-skin="light"] {
+  --bg: #F4F3EE;
+  --panel: #FFFFFF;
+  --raised: #E9E8E2;
+  --fg: #121212;
+  --muted: #474747;
+  --faint: #5E5E5E;
+  --line: #BDBCB4;
+  --accent: #B8400C;
+  --on-accent: #FFFFFF;
+  --widget: #121212;
+  --launch: #6A6A6A;
+  --zebra: rgba(0,0,0,0.051);
+  --accent2: #B8400C;
+  --accent3: #B8400C;
+  --radius: 0;
+  --line-width: 1px;
+  --hazard: 4px;
+  --display: "Oswald", "Noto Sans JP", sans-serif;
+  --mono: "Share Tech Mono", ui-monospace, "Noto Sans JP", monospace;
+  color-scheme: light;
+}
+[data-theta-skin="pop"] {
+  --bg: #FAF6EC;
+  --panel: #FFFFFF;
+  --raised: #F2EDE0;
+  --fg: #2B2B2B;
+  --muted: #4F4F4F;
+  --faint: #6B6B6B;
+  --line: #2B2B2B;
+  --accent: #EF6F51;
+  --on-accent: #FFFFFF;
+  --widget: #7FCFB5;
+  --launch: #F2BE2E;
+  --zebra: rgba(245,200,66,0.149);
+  --accent2: #F5C842;
+  --accent3: #A8E2CF;
+  --radius: 10px;
+  --line-width: 1.5px;
+  --hazard: 4px;
+  --display: system-ui, "Noto Sans JP", sans-serif;
+  --mono: system-ui, "Noto Sans JP", sans-serif;
+  color-scheme: light;
+}
+[data-theta-skin="alert"] {
+  --bg: #050404;
+  --panel: #0D0908;
+  --raised: #1A110C;
+  --fg: #FFD9B0;
+  --muted: #D6955C;
+  --faint: #9C6A42;
+  --line: #5C3418;
+  --accent: #FF7A00;
+  --on-accent: #050404;
+  --widget: #FF2A2A;
+  --launch: #39E07A;
+  --zebra: rgba(255,122,0,0.078);
+  --accent2: #FF2A2A;
+  --accent3: #39E07A;
+  --radius: 0;
+  --line-width: 1px;
+  --hazard: 10px;
+  --display: "Oswald", "Noto Sans JP", sans-serif;
+  --mono: "Share Tech Mono", ui-monospace, "Noto Sans JP", monospace;
+  color-scheme: dark;
+}
+[data-theta-skin="scifi"] {
+  --bg: #060C0E;
+  --panel: #0B1519;
+  --raised: #112128;
+  --fg: #DDF6FF;
+  --muted: #8FB8C4;
+  --faint: #5F8794;
+  --line: #1F3C46;
+  --accent: #F2E21B;
+  --on-accent: #060C0E;
+  --widget: #3FD0E8;
+  --launch: #7BE38B;
+  --zebra: rgba(63,208,232,0.071);
+  --accent2: #3FD0E8;
+  --accent3: #7BE38B;
+  --radius: 0;
+  --line-width: 1px;
+  --hazard: 6px;
+  --display: "Oswald", "Noto Sans JP", sans-serif;
+  --mono: "Share Tech Mono", ui-monospace, "Noto Sans JP", monospace;
+  color-scheme: dark;
+}
+
+/* 背景の模様（ALERT の走査線・SCI-FI の方眼）。地を塗る要素に .theta-backdrop を付ける */
+[data-theta-skin="alert"] .theta-backdrop, .theta-backdrop[data-theta-skin="alert"] {
+  background-image: repeating-linear-gradient(to bottom, color-mix(in srgb, var(--accent) 5%, transparent) 0 1px, transparent 1px 4px);
+}
+[data-theta-skin="scifi"] .theta-backdrop, .theta-backdrop[data-theta-skin="scifi"] {
+  background-image:
+    repeating-linear-gradient(to right, color-mix(in srgb, var(--widget) 7%, transparent) 0 1px, transparent 1px 28px),
+    repeating-linear-gradient(to bottom, color-mix(in srgb, var(--widget) 7%, transparent) 0 1px, transparent 1px 28px);
+}
+/* POP のボタンの、右下にずらした影 */
+[data-theta-skin="pop"] .theta-pop-shadow { box-shadow: 3px 3px 0 var(--fg); }
