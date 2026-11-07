@@ -701,6 +701,14 @@
     }
     return r.token;
   }
+  // A Google API turned off in the Cloud project: offer Google's own page to turn it on.
+  function googleError(e) {
+    if (!e.activationUrl) return toast(e.message);
+    const b = dialog('<h3>' + esc(e.api || 'Google の API') + ' が無効です</h3><p>' + esc(e.message) + '</p>' +
+      '<p class="hint">Google Cloud の画面で「有効にする」を押します（PC のブラウザでも、このスマホでも）。シリーズのアプリで共通のプロジェクトなので、1 回で全部のアプリに効きます。</p>' +
+      '<div class="btns"><button class="btn primary" data-url="' + esc(e.activationUrl) + '">有効にする画面を開く</button><button class="btn small" data-copy="' + esc(e.activationUrl) + '">URLをコピー</button><button class="btn" data-close>閉じる</button></div>');
+    $('[data-close]', b).onclick = closeDialog;
+  }
   async function login() {
     try {
       busy('Googleに接続しています…');
@@ -734,7 +742,7 @@
       );
     } catch (e) {
       busy(null);
-      toast(e.message);
+      googleError(e);
     }
   }
   async function register(id) {
@@ -777,7 +785,7 @@
       toast(same ? 'カレンダーの予定を更新しました' : 'Googleカレンダーに登録しました（画像' + images.length + '枚を添付）');
     } catch (e) {
       busy(null);
-      toast(e.message);
+      googleError(e);
       if (/クライアント|中止|SHA-1/.test(e.message)) push({ type: 'guide' });
     }
     renderLayer();
@@ -796,7 +804,7 @@
       toast('カレンダーから削除しました');
     } catch (e) {
       busy(null);
-      toast(e.message);
+      googleError(e);
     }
     renderLayer();
     render();

@@ -61,11 +61,26 @@
       } catch (e) {}
       const err = new Error('Google（HTTP ' + res.status + '）：' + msg);
       err.status = res.status;
-      if (res.status === 403 && /has not been used|is disabled/i.test(text))
-        err.message = 'Google Cloudのプロジェクトで ' + (/drive/i.test(url) ? 'Google Drive API' : 'Google Calendar API') + ' を有効にしてください（設定 →「Google連携の初期設定ガイド」）';
+      if (res.status === 403 && /SERVICE_DISABLED|has not been used|is disabled/i.test(text)) {
+        // Google names the project and the page that turns the API on: hand both to the screen.
+        err.api = /drive/i.test(url) ? 'Google Drive API' : 'Google Calendar API';
+        err.activationUrl = activationUrl(text);
+        err.project = (/[?&]project=([\w-]+)/.exec(err.activationUrl || '') || [])[1] || '';
+        err.message = 'Google Cloudのプロジェクト' + (err.project ? '（' + err.project + '）' : '') + 'で ' + err.api + ' が有効になっていません。有効にしてから数分待って、もう一度試してください';
+      }
       throw err;
     }
     return text ? JSON.parse(text) : {};
+  }
+
+  // ErrorInfo.metadata.activationUrl, or the console link in the message.
+  function activationUrl(text) {
+    try {
+      const d = JSON.parse(text).error.details || [];
+      for (const x of d) if (x.metadata && x.metadata.activationUrl) return x.metadata.activationUrl;
+    } catch (e) {}
+    const m = /https:\/\/console\.(?:developers|cloud)\.google\.com\/apis\/[^\s"'\\]+/.exec(text || '');
+    return m ? m[0] : '';
   }
 
   async function calendars(token) {

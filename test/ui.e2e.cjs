@@ -49,6 +49,10 @@ function sampleJpeg(i) {
     if (u.includes('/calendarList')) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [{ id: 'me@example.com', summary: 'me@example.com', primary: true }] }) });
     if (u.includes('/upload/drive')) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'f' + calls.length, webViewLink: 'https://drive.google.com/file/d/f' + calls.length + '/view', name: 'x.jpg', mimeType: 'image/jpeg' }) });
     if (u.includes('/drive/v3/files')) return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'folder1' }) });
+    if (u.includes('/calendar/v3/calendars/') && !calls.disabledShown) {
+      calls.disabledShown = true;
+      return route.fulfill({ status: 403, contentType: 'application/json', body: JSON.stringify({ error: { code: 403, message: 'Google Calendar API has not been used in project 123 before or it is disabled.', status: 'PERMISSION_DENIED', details: [{ '@type': 'type.googleapis.com/google.rpc.ErrorInfo', reason: 'SERVICE_DISABLED', metadata: { activationUrl: 'https://console.developers.google.com/apis/api/calendar-json.googleapis.com/overview?project=meishi-512311' } }] } }) });
+    }
     if (u.includes('/calendar/v3/calendars/')) {
       const ev = JSON.parse(route.request().postData() || '{}');
       if (!ev.attachments || !ev.attachments.length) throw new Error('no attachments');
@@ -130,9 +134,17 @@ function sampleJpeg(i) {
   await page.fill('#memo', '参加予定。17時までに到着');
   await page.dispatchEvent('#memo', 'change');
   await page.click('[data-act=register]');
+  // the first try: Calendar API turned off in the project → the page to turn it on
+  await page.waitForSelector('.dialog h3:has-text("Google Calendar API が無効です")', { timeout: 15000 });
+  if (!(await page.textContent('.dialog')).includes('meishi-512311')) throw new Error('project not named');
+  await page.click('.dialog [data-url]');
+  if (!(await page.evaluate(() => window.__opened)).some((x) => x.includes('calendar-json.googleapis.com/overview?project=meishi-512311'))) throw new Error('activation page not opened');
+  await page.click('.dialog [data-close]');
+  if ((await page.evaluate(() => window.__opened.length)) && calls.filter((c) => c.includes('/upload/drive')).length !== 3) throw new Error('expected 3 uploads before the calendar');
+  await page.click('[data-act=register]');
   await page.waitForSelector('.status.ok:has-text("Googleカレンダーに登録済み")', { timeout: 15000 });
   if (!calls.some((c) => c.startsWith('POST https://www.googleapis.com/calendar/v3/calendars/primary/events'))) throw new Error('no event created: ' + calls.join('\n'));
-  if (calls.filter((c) => c.includes('/upload/drive')).length !== 3) throw new Error('expected 3 uploads');
+  if (calls.filter((c) => c.includes('/upload/drive')).length !== 3) throw new Error('pictures uploaded again on the retry');
 
   // other buttons
   await page.click('[data-contact="0"]');
