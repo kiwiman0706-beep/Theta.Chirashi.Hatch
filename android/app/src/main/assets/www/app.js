@@ -120,6 +120,14 @@
     return !!last && last < today();
   }
 
+  // ---- "take a flyer" (ScanActivity: Intent app.thetahatch.action.SCAN from Theta Home Hatch) ----
+  const Q = new URLSearchParams(location.search);
+  const SCAN = Q.get('scan') === 'pick' ? 'pick' : Q.get('scan') ? 'camera' : '';
+  const scanState = { ids: [], registered: 0 };
+  function scanFinish(ok) {
+    call('done', { ok: !!ok }).catch(() => {});
+  }
+
   // ---- state & navigation --------------------------------------------------------------------
   const ui = { tab: 'list', filter: 'upcoming', q: '', month: null, day: today(), stack: [] };
 
@@ -136,6 +144,15 @@
     const dlg = $('.dialog-back');
     if (dlg && !dlg.hidden) {
       closeDialog();
+      return true;
+    }
+    if (SCAN) {
+      const top = ui.stack[ui.stack.length - 1];
+      if (top && top.type !== 'detail') {
+        pop();
+        return true;
+      }
+      scanFinish(scanState.registered > 0);
       return true;
     }
     if (ui.stack.length) {
@@ -165,7 +182,7 @@
     if (r.status === 'reading') b.push('<span class="badge warn">読み取り中</span>');
     if (r.status === 'error') b.push('<span class="badge err">読み取り失敗</span>');
     if (r.format !== 'onsite' && r.status === 'ready') b.push('<span class="badge web">' + FORMAT[r.format] + '</span>');
-    if (r.calendar && r.calendar.via === 'api') b.push('<span class="badge ok">カレンダー登録済</span>');
+    if ((r.calendar && r.calendar.via === 'api') || r.device) b.push('<span class="badge ok">カレンダー登録済</span>');
     else if (r.calendar && r.calendar.via === 'intent') b.push('<span class="badge ok">カレンダーアプリへ送信済</span>');
     else if (r.status === 'ready' && r.date && !isPast(r)) b.push('<span class="badge warn">未登録</span>');
     if (r.cards && r.cards.length) b.push('<span class="badge">名刺 ' + r.cards.length + '</span>');
@@ -191,7 +208,7 @@
     let list;
     if (ui.filter === 'upcoming') list = sorted(all.filter((r) => !isPast(r)));
     else if (ui.filter === 'past') list = sorted(all.filter(isPast)).reverse();
-    else if (ui.filter === 'unreg') list = sorted(all.filter((r) => !r.calendar && r.date && !isPast(r)));
+    else if (ui.filter === 'unreg') list = sorted(all.filter((r) => !r.calendar && !r.device && r.date && !isPast(r)));
     else if (ui.filter === 'web') list = sorted(all.filter((r) => r.format !== 'onsite'));
     else list = sorted(all).reverse();
     const chips = [
@@ -321,13 +338,18 @@
 
     // calendar
     const c = r.calendar;
+    const scanNext = SCAN ? 'して戻る' : '';
     if (c && c.via === 'api')
       h += '<div class="status ok">Googleカレンダーに登録済み（' + esc(c.calendarName || c.calendarId) + '、' + esc((c.at || '').slice(0, 16).replace('T', ' ')) + '）' +
         '<div class="btns"><button class="btn small" data-act="gopen">カレンダーで開く</button><button class="btn small" data-act="register">内容を更新</button><button class="btn small danger" data-act="unregister">登録を取り消す</button></div></div>';
+    else if (r.device)
+      h += '<div class="status ok">このスマホのカレンダーに登録済み（' + esc(r.device.calendarName || '') + '、' + esc((r.device.at || '').slice(0, 16).replace('T', ' ')) + '）' +
+        '<div class="btns"><button class="btn small" data-act="device">内容を更新</button><button class="btn small" data-act="register">チラシの画像も付ける（Googleカレンダー）</button><button class="btn small danger" data-act="undevice">登録を取り消す</button></div></div>';
     else if (c && c.via === 'intent')
-      h += '<div class="status ok">カレンダーアプリに渡しました（' + esc((c.at || '').slice(0, 16).replace('T', ' ')) + '）<div class="btns"><button class="btn small" data-act="register">Googleカレンダーに画像付きで登録</button><button class="btn small" data-act="intent">もう一度カレンダーアプリへ</button></div></div>';
+      h += '<div class="status ok">カレンダーアプリに渡しました（' + esc((c.at || '').slice(0, 16).replace('T', ' ')) + '）<div class="btns"><button class="btn small" data-act="register">Googleカレンダーに画像付きで登録</button><button class="btn small" data-act="device">このスマホのカレンダーに登録</button></div></div>';
     else if (r.status === 'ready')
-      h += '<div class="btns"><button class="btn primary wide" data-act="register">📅 Googleカレンダーに登録（画像付き）</button><button class="btn wide" data-act="intent">カレンダーアプリで登録（設定なしで使える・画像なし）</button></div>';
+      h += '<div class="btns"><button class="btn primary wide" data-act="device">📅 カレンダーに登録' + scanNext + '（すぐ・設定不要）</button><button class="btn wide" data-act="register">Googleカレンダーに画像付きで登録' + scanNext + '</button></div>' +
+        (SCAN ? '<div class="btns"><button class="btn wide" data-act="scandone">登録せずに戻る</button></div>' : '');
 
     // web
     const on = r.online || {};
@@ -747,9 +769,10 @@
   }
   async function register(id) {
     const r = rec(id);
+    let ok = false;
     if (!r.date) {
       toast('日付がありません。「編集」で日付を入れてください');
-      return;
+      return false;
     }
     try {
       busy('Googleに接続しています…');
@@ -775,14 +798,23 @@
         images.push({ title, url: f.webViewLink });
       }
       busy('Googleカレンダーに登録しています…');
-      const calId = s.calendarId || 'primary';
-      const same = r.calendar && r.calendar.via === 'api' && r.calendar.calendarId === calId;
-      const ev = await G.putEvent(t, calId, same ? r.calendar.eventId : null, Core.calendarBody(r, images, attachments.slice(0, 25)));
+      let calId = s.calendarId || 'primary';
+      let same = r.calendar && r.calendar.via === 'api' && r.calendar.calendarId === calId;
+      let eventId = same ? r.calendar.eventId : null;
+      const adopted = await adoptDeviceEvent(r);
+      if (adopted) {
+        calId = adopted.calendarId;
+        eventId = adopted.eventId;
+        same = true;
+      }
+      const ev = await G.putEvent(t, calId, eventId, Core.calendarBody(r, images, attachments.slice(0, 25)));
+      delete r.device;
       r.calendar = { via: 'api', eventId: ev.id, calendarId: calId, calendarName: s.calendarName || (calId === 'primary' ? 'メインのカレンダー' : calId), htmlLink: ev.htmlLink, at: new Date().toISOString() };
       r.updatedAt = r.calendar.at;
       save();
       busy(null);
-      toast(same ? 'カレンダーの予定を更新しました' : 'Googleカレンダーに登録しました（画像' + images.length + '枚を添付）');
+      toast(same ? 'カレンダーの予定を更新しました（画像' + images.length + '枚を添付）' : 'Googleカレンダーに登録しました（画像' + images.length + '枚を添付）');
+      ok = true;
     } catch (e) {
       busy(null);
       googleError(e);
@@ -790,6 +822,7 @@
     }
     renderLayer();
     render();
+    return ok;
   }
   async function unregister(id) {
     const r = rec(id);
@@ -809,6 +842,68 @@
     renderLayer();
     render();
   }
+  // The phone's calendar (CalendarContract). The event syncs to Google Calendar and shows in other
+  // apps (Home's schedule tab) at once.
+  async function deviceRegister(id) {
+    const r = rec(id);
+    const times = Core.intentTimes(r);
+    if (!times) {
+      toast('日付がありません。「編集」で日付を入れてください');
+      return false;
+    }
+    if (r.calendar && r.calendar.via === 'api') {
+      toast('Googleカレンダーに登録済みです（このスマホのカレンダーにも同期で出ます）');
+      return true;
+    }
+    try {
+      const d = r.device || {};
+      const res = await call('deviceCalendar', Object.assign({ op: 'put', eventId: d.eventId == null ? -1 : d.eventId, calendarId: db.settings.deviceCalendarId == null ? -1 : db.settings.deviceCalendarId, account: db.settings.email || '', title: Core.eventTitle(r), location: Core.location(r), description: Core.description(r, []) }, times));
+      if (res.denied) {
+        toast('カレンダーへのアクセスが許可されなかったので、カレンダーアプリで登録します');
+        await viaIntent(id);
+        return !!r.calendar;
+      }
+      const again = !!r.device;
+      r.device = { eventId: res.eventId, calendarId: res.calendarId, calendarName: res.calendarName || '', account: res.account || '', at: new Date().toISOString() };
+      if (r.calendar && r.calendar.via === 'intent') delete r.calendar;
+      r.updatedAt = r.device.at;
+      save();
+      toast(again ? 'このスマホのカレンダーの予定を更新しました' : 'このスマホのカレンダーに登録しました（' + (res.calendarName || '') + '）');
+      return true;
+    } catch (e) {
+      toast(e.message);
+      return false;
+    } finally {
+      renderLayer();
+      render();
+    }
+  }
+  async function deviceRemove(id) {
+    const r = rec(id);
+    if (!(await confirmBox('登録を取り消す', 'このスマホのカレンダーからこの予定を削除します。', '削除する'))) return;
+    try {
+      await call('deviceCalendar', { op: 'remove', eventId: r.device.eventId });
+      delete r.device;
+      save();
+      toast('カレンダーから削除しました');
+    } catch (e) {
+      toast(e.message);
+    }
+    renderLayer();
+    render();
+  }
+  // Before the Calendar API registers an event that is already in the phone's calendar: the same
+  // event (once Android has synced it), so the pictures go on it instead of a second event.
+  async function adoptDeviceEvent(r) {
+    if (!r.device) return null;
+    try {
+      const s = await call('deviceCalendar', { op: 'synced', eventId: r.device.eventId });
+      if (s.eventId && s.calendarId) return s;
+      await call('deviceCalendar', { op: 'remove', eventId: r.device.eventId });
+    } catch (e) {}
+    return null;
+  }
+
   async function viaIntent(id) {
     const r = rec(id);
     const times = Core.intentTimes(r);
@@ -825,6 +920,38 @@
     } catch (e) {
       toast('カレンダーアプリを開けませんでした：' + e.message);
     }
+  }
+
+  // In "take a flyer": after registering, the next flyer of this scan, or back to the caller.
+  function scanAfterRegister(ok) {
+    if (!SCAN || !ok) return;
+    scanState.registered++;
+    const next = scanState.ids.find((x) => rec(x) && !rec(x).device && !rec(x).calendar && rec(x).status === 'ready' && rec(x).date);
+    if (next) {
+      ui.stack = [{ type: 'detail', id: next }];
+      renderLayer();
+      toast('もう 1 件読み取っています。確認して登録してください');
+    } else setTimeout(() => scanFinish(true), 900);
+  }
+  async function scanStart() {
+    $('#main').innerHTML = '<div class="empty"><div class="big">📷</div><p>チラシを撮っています…</p><div class="btns" style="justify-content:center"><button class="btn" data-act="scanagain">撮る</button><button class="btn" data-act="scanpick">画像を選ぶ</button><button class="btn" data-act="scandone">やめる</button></div></div>';
+    try {
+      const res = SCAN === 'pick' ? await call('pickImages', {}) : await call('scan', { pages: 20 });
+      if (res.unavailable) {
+        const p = await call('pickImages', {});
+        if (!p.files || !p.files.length) return scanFinish(false);
+        return scanRead(p.files);
+      }
+      if (!res.files || !res.files.length) return scanFinish(false);
+      await scanRead(res.files);
+    } catch (e) {
+      toast(e.message);
+    }
+  }
+  async function scanRead(files) {
+    const before = new Set(db.records.map((r) => r.id));
+    await takeIn(files.map((f) => f.name), null);
+    db.records.forEach((r) => !before.has(r.id) && scanState.ids.push(r.id));
   }
 
   async function removeRecord(id) {
@@ -905,6 +1032,7 @@
         save();
         pop();
         if (r.calendar && r.calendar.via === 'api') toast('保存しました。カレンダーに反映するには「内容を更新」を押してください');
+        else if (r.device) deviceRegister(r.id);
         return;
       }
       case 'reread':
@@ -912,9 +1040,19 @@
       case 'addpages':
         return scan(id);
       case 'register':
-        return register(id);
+        return scanAfterRegister(await register(id));
       case 'unregister':
         return unregister(id);
+      case 'device':
+        return scanAfterRegister(await deviceRegister(id));
+      case 'undevice':
+        return deviceRemove(id);
+      case 'scandone':
+        return scanFinish(scanState.registered > 0);
+      case 'scanagain':
+        return scanStart();
+      case 'scanpick':
+        return call('pickImages', {}).then((p) => (p.files && p.files.length ? scanRead(p.files) : null)).catch((er) => toast(er.message));
       case 'intent':
         return viaIntent(id);
       case 'gopen':
@@ -1047,13 +1185,17 @@
   load();
   readHub();
   applySkin();
-  // A reading cut off by closing the app: offer to read again.
-  db.records.forEach((r) => {
+  // A reading cut off by closing the app: offer to read again (not in the "take a flyer" window,
+  // which may open while the app itself is reading).
+  if (!SCAN) db.records.forEach((r) => {
     if (r.status === 'reading') {
       r.status = 'error';
       r.error = '読み取りの途中でアプリが閉じられました';
     }
   });
-  render();
-  if (!N.secretGet() && !db.records.length) setTimeout(() => toast('はじめに、設定（右上の歯車）で Gemini APIキーを入れてください'), 600);
+  if (SCAN) {
+    document.body.classList.add('scan-mode');
+    scanStart();
+  } else render();
+  if (!SCAN && !N.secretGet() && !db.records.length) setTimeout(() => toast('はじめに、設定（右上の歯車）で Gemini APIキーを入れてください'), 600);
 })();

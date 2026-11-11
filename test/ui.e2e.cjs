@@ -16,12 +16,13 @@ function sampleJpeg(i) {
 
 (async () => {
   const browser = await chromium.launch();
-  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+  const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => m.type() === 'error' && !/Failed to load resource/.test(m.text()) && errors.push(m.text()));
   const media = {};
-  await page.route('https://app.test/**', async (route) => {
+  await ctx.route('https://app.test/**', async (route) => {
     const u = new URL(route.request().url());
     let p = u.pathname.replace(/^\//, '');
     const m = /^(media|incoming)\/(.+)$/.exec(p);
@@ -36,13 +37,13 @@ function sampleJpeg(i) {
     route.fulfill({ status: 200, body: fs.readFileSync(f), contentType: p.endsWith('.js') ? 'text/javascript' : p.endsWith('.css') ? 'text/css' : 'text/html' });
   });
   const calls = [];
-  await page.route('https://generativelanguage.googleapis.com/**', (route) => {
+  await ctx.route('https://generativelanguage.googleapis.com/**', (route) => {
     calls.push('gemini');
     const body = JSON.parse(route.request().postData());
     if (!body.contents[0].parts.some((p) => p.inline_data)) throw new Error('no images sent');
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ candidates: [{ content: { parts: [{ text: answer }] } }] }) });
   });
-  await page.route('https://www.googleapis.com/**', (route) => {
+  await ctx.route('https://www.googleapis.com/**', (route) => {
     const u = route.request().url();
     const method = route.request().method();
     calls.push(method + ' ' + u.replace(/\?.*/, ''));
@@ -61,9 +62,9 @@ function sampleJpeg(i) {
     }
     route.fulfill({ status: 404, body: '{}' });
   });
-  await page.addInitScript(() => {
+  const initBridge = () => {
     let data = '';
-    let key = '';
+    let key = location.search ? 'AIzaTEST' : '';
     const reply = (id, d) => setTimeout(() => window.AndroidReply(id, d), 30);
     window.__opened = [];
     window.AndroidNative = {
@@ -82,6 +83,14 @@ function sampleJpeg(i) {
         const a = JSON.parse(json);
         if (method === 'scan') return reply(id, { files: [{ name: 'p1.jpg', path: 'incoming/p1.jpg' }, { name: 'p2.jpg', path: 'incoming/p2.jpg' }, { name: 'p3.jpg', path: 'incoming/p3.jpg' }] });
         if (method === 'qr') return reply(id, { codes: [] });
+        if (method === 'deviceCalendar') {
+          window.__device = (window.__device || []).concat([a.op]);
+          if (a.op === 'put') return reply(id, { eventId: 55, calendarId: 3, calendarName: 'me@example.com', account: 'me@example.com' });
+          if (a.op === 'synced') return reply(id, { eventId: 'gev55', calendarId: 'me@example.com' });
+          return reply(id, {});
+        }
+        if (method === 'done') return (window.__done = a.ok), reply(id, {});
+        if (method === 'pickImages') return reply(id, { files: [{ name: 'q1.jpg', path: 'incoming/q1.jpg' }] });
         if (method === 'hubSecret') return (key = 'AIzaFROMHUB'), reply(id, { ok: true });
         if (method === 'update') return reply(id, { hub: 'Theta Home Hatch' });
         if (method === 'transfer') return window.__opened.push('transfer ' + a.mode), reply(id, {});
@@ -93,8 +102,9 @@ function sampleJpeg(i) {
         reply(id, { error: 'unknown ' + method });
       }
     };
-  });
-  await page.route('https://api.github.com/**', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ tag_name: 'v0.3.0' }) }));
+  };
+  await ctx.addInitScript(initBridge);
+  await ctx.route('https://api.github.com/**', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ tag_name: 'v0.3.0' }) }));
   await page.goto('https://app.test/index.html');
   if ((await page.getAttribute('html', 'data-theta-skin')) !== 'pop') throw new Error('hub skin not applied');
   await page.waitForSelector('.empty');
@@ -194,6 +204,28 @@ function sampleJpeg(i) {
   // back button
   const back = await page.evaluate(() => window.handleBack());
   if (back !== true) throw new Error('back from the calendar tab should go to the list');
+  // ---- "take a flyer" from Home: Intent app.thetahatch.action.SCAN → ScanActivity ----
+  const scanPage = await ctx.newPage();
+  scanPage.on('pageerror', (e) => errors.push('scan: ' + e.message));
+  await scanPage.goto('https://app.test/index.html?scan=camera&source=home');
+  await scanPage.waitForSelector('h1.title:has-text("Higashi-Osaka")', { timeout: 15000 });
+  await scanPage.waitForSelector('#busy', { state: 'hidden' });
+  if (await scanPage.isVisible('.fab-row')) throw new Error('scan window shows the list buttons');
+  if (shots) await scanPage.screenshot({ path: path.join(shots, '6-scan-detail.png') });
+  await scanPage.click('[data-act=device]');
+  await scanPage.waitForFunction(() => window.__done === true, null, { timeout: 5000 });
+  // the pictures added later go on the same event (synced from the phone's calendar)
+  await scanPage.evaluate(() => (window.__done = undefined));
+  await scanPage.click('[data-act=register]');
+  await scanPage.waitForFunction(() => window.__done === true, null, { timeout: 15000 });
+  if (!calls.some((c) => c.startsWith('PATCH https://www.googleapis.com/calendar/v3/calendars/me%40example.com/events/gev55'))) throw new Error('pictures not added to the synced event:\n' + calls.join('\n'));
+  // stopping without registering → RESULT_CANCELED
+  const cancelPage = await ctx.newPage();
+  await cancelPage.goto('https://app.test/index.html?scan=pick&source=home');
+  await cancelPage.waitForSelector('h1.title', { timeout: 15000 });
+  await cancelPage.waitForSelector('#busy', { state: 'hidden' });
+  await cancelPage.evaluate(() => window.handleBack());
+  if ((await cancelPage.evaluate(() => window.__done)) !== false) throw new Error('back should finish with RESULT_CANCELED');
   if (errors.length) throw new Error('JS errors:\n' + errors.join('\n'));
   console.log('UI OK —', calls.length, 'API calls;', (await page.evaluate(() => window.__opened)).join(', '));
   await browser.close();

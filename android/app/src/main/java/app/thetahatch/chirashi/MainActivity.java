@@ -63,7 +63,7 @@ import org.json.JSONObject;
 public class MainActivity extends ComponentActivity {
   static final String HOST = "appassets.androidplatform.net";
   static final String START = "https://" + HOST + "/www/index.html";
-  static final int SCAN = 1, AUTH = 2, ACCOUNT = 3, SAVE = 4, FILES = 5, PERMS = 6;
+  static final int SCAN = 1, AUTH = 2, ACCOUNT = 3, SAVE = 4, FILES = 5, PERMS = 6, CAL = 7, PICK = 8;
   // Calendar: create / change the events this app makes. Calendar list: choose which calendar.
   // Drive (per file): upload the flyer pictures and attach them to the event.
   static final String[] SCOPES = {
@@ -75,7 +75,7 @@ public class MainActivity extends ComponentActivity {
   WebView web;
   final Handler main = new Handler(Looper.getMainLooper());
   final ExecutorService work = Executors.newSingleThreadExecutor();
-  String scanId, authId, accountId, saveId;
+  String scanId, authId, accountId, saveId, pickId;
   JSONObject authArgs;
   byte[] saveBytes;
   ValueCallback<Uri[]> fileCallback;
@@ -169,12 +169,12 @@ public class MainActivity extends ComponentActivity {
           return;
         }
         web.evaluateJavascript("window.handleBack ? String(window.handleBack()) : 'false'", r -> {
-          if (r == null || r.contains("false")) moveTaskToBack(true);
+          if (r == null || r.contains("false")) onRootBack();
         });
       }
     });
     setContentView(web);
-    web.loadUrl(START);
+    web.loadUrl(startUrl());
     if (isShare(getIntent())) pendingShare = getIntent();
   }
 
@@ -187,6 +187,21 @@ public class MainActivity extends ComponentActivity {
     }
   }
 
+  // The page to open (ScanActivity adds the "take a flyer" mode).
+  String startUrl() {
+    return START;
+  }
+
+  // Back at the list: the app goes to the background (ScanActivity finishes instead).
+  void onRootBack() {
+    moveTaskToBack(true);
+  }
+
+  // Called by the page when the "take a flyer" screen is done (ScanActivity).
+  void done(boolean ok) {}
+
+  // Bumped by every save and import; an open screen whose records file changed under it (another
+  // window of this app, an import) reloads when it comes back.
   int seenGeneration = Transfer.generation.get();
 
   // Back from an import (TransferActivity): the records file changed under the screen.
@@ -207,11 +222,54 @@ public class MainActivity extends ComponentActivity {
   @Override
   public void onRequestPermissionsResult(int code, String[] perms, int[] results) {
     super.onRequestPermissionsResult(code, perms, results);
+    if (code == CAL) {
+      String id = calId;
+      JSONObject a = calArgs;
+      calId = null;
+      calArgs = null;
+      if (DeviceCalendar.allowed(this)) deviceCalendar(id, a);
+      else {
+        try {
+          reply(id, new JSONObject().put("denied", true));
+        } catch (Exception ignored) {
+        }
+      }
+      return;
+    }
     if (code != PERMS || pendingPermission == null) return;
     PermissionRequest req = pendingPermission;
     pendingPermission = null;
     if (granted(Manifest.permission.CAMERA)) req.grant(req.getResources());
     else req.deny();
+  }
+
+  // ---- the phone's calendar ---------------------------------------------------------------
+  String calId;
+  JSONObject calArgs;
+
+  void deviceCalendar(String id, JSONObject a) {
+    if (!DeviceCalendar.allowed(this)) {
+      calId = id;
+      calArgs = a;
+      requestPermissions(new String[] {Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR}, CAL);
+      return;
+    }
+    work.execute(() -> {
+      try {
+        String op = a.optString("op");
+        JSONObject out;
+        if ("put".equals(op)) out = DeviceCalendar.put(this, a);
+        else if ("remove".equals(op)) {
+          DeviceCalendar.remove(this, a.optLong("eventId", -1));
+          out = new JSONObject();
+        } else if ("synced".equals(op)) out = DeviceCalendar.synced(this, a.optLong("eventId", -1));
+        else if ("calendars".equals(op)) out = new JSONObject().put("calendars", DeviceCalendar.calendars(this));
+        else throw new Exception("op");
+        reply(id, out);
+      } catch (Exception e) {
+        fail(id, e.getMessage());
+      }
+    });
   }
 
   // ---- answers to the page ---------------------------------------------------------------
@@ -410,6 +468,15 @@ public class MainActivity extends ComponentActivity {
         if (data.getClipData() != null) for (int i = 0; i < data.getClipData().getItemCount(); i++) out.add(data.getClipData().getItemAt(i).getUri());
         else if (data.getData() != null) out.add(data.getData());
         cb.onReceiveValue(out.toArray(new Uri[0]));
+      } else if (request == PICK) {
+        String id = pickId;
+        pickId = null;
+        JSONArray files = new JSONArray();
+        if (result == RESULT_OK && data != null) {
+          if (data.getClipData() != null) for (int i = 0; i < data.getClipData().getItemCount(); i++) files.put(incoming(data.getClipData().getItemAt(i).getUri()));
+          else if (data.getData() != null) files.put(incoming(data.getData()));
+        }
+        reply(id, new JSONObject().put("files", files));
       } else if (request == SCAN) {
         String id = scanId;
         scanId = null;
@@ -562,6 +629,7 @@ public class MainActivity extends ComponentActivity {
           f.renameTo(bak);
         }
         if (!tmp.renameTo(f)) throw new Exception("保存できませんでした");
+        seenGeneration = Transfer.generation.incrementAndGet();
         return "";
       } catch (Exception e) {
         return String.valueOf(e.getMessage());
@@ -613,6 +681,19 @@ public class MainActivity extends ComponentActivity {
         try {
           JSONObject a = json == null || json.isEmpty() ? new JSONObject() : new JSONObject(json);
           switch (method) {
+            case "deviceCalendar":
+              deviceCalendar(id, a);
+              break;
+            case "pickImages": {
+              pickId = id;
+              Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("image/*").putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+              startActivityForResult(i, PICK);
+              break;
+            }
+            case "done":
+              reply(id, new JSONObject());
+              done(a.optBoolean("ok"));
+              break;
             case "scan":
               scan(id, a);
               break;

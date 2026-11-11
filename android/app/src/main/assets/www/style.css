@@ -189,3 +189,5 @@ ol.steps li { margin: 8px 0; }
 [data-theta-skin="alert"] .top { border-bottom: var(--hazard) solid var(--accent); }
 label.follow { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--sub); margin: 6px 0; }
 .field select { appearance: auto; }
+/* "take a flyer" window (opened from Theta Home Hatch): only the scanner and the flyer */
+body.scan-mode .tabs, body.scan-mode .fab-row { display: none; }

@@ -10,7 +10,7 @@
 | QRコード | チラシの QR コード（Zoom・Teams などの参加URL、申込フォーム）をスマホの中で読み取り |
 | 読み取り（Gemini） | 会の名前・日時・会場（階・部屋、住所、電話、アクセス）・Web参加（URL・ミーティングID・パスコード）・主催・共催・製品・プログラム（演題、座長・演者・ディスカッサントと所属）・申込・参加費・単位・注意書き（情報交換会など）・資材コード・要約。地図の面は同じ会の会場情報に、名刺は担当者としてまとめます。別々の会のチラシが混ざっていれば分けます |
 | Googleカレンダー | 予定のタイトル・場所・時刻に加え、説明欄にチラシの内容を整理したメモ（プログラム、担当者、Web参加情報、自分のメモ、画像へのリンク）。**チラシ画像はGoogleドライブの「Theta Chirashi Hatch」フォルダに保存して予定に添付**します。あとから内容の更新・取り消しも |
-| 設定なしでも | 「カレンダーアプリで登録」なら Google Cloud の設定なしで、スマホのカレンダーアプリに内容を入れた状態で開きます（画像の添付はなし） |
+| 設定なしでも | 「カレンダーに登録（すぐ・設定不要）」で、このスマホのカレンダー（Google アカウントのカレンダー）に直接入れます。画像の添付はなし。あとから「チラシの画像も付ける」で同じ予定に添付できます |
 | 見る | 一覧（これから／カレンダー未登録／Web参加／過去／すべて、検索）と月のカレンダー表示。詳細画面でチラシ画像の拡大、Zoom を開く、ID・パスコードのコピー、地図・経路、名刺を連絡先に追加、共有、Markdown で保存 |
 
 データ（読み取り結果と画像）はスマホの中に保存されます。
@@ -59,6 +59,17 @@ NODE_PATH=$(npm root -g) node test/ui.e2e.cjs
 ```
 
 署名：Release はシリーズ共通の鍵（Secrets の `ANDROID_KEYSTORE_B64`・`ANDROID_KEYSTORE_PASSWORD`・`ANDROID_KEY_ALIAS`・`ANDROID_KEY_PASSWORD`、Theta.Hatch.Series の `secrets/README.md`）で署名します。Secrets が無いと Release は失敗します。手元のビルドは Android のデバッグ鍵になり、Google ログインはできません。
+
+## 撮って登録（ほかのアプリから）
+
+Theta Hatch シリーズの入口 `Intent("app.thetahatch.action.SCAN")`（Theta.Hatch.Series の `spec/THETA_HATCH_SPEC.md`）に対応しています。Theta Home Hatch の予定のタブに「チラシを撮る（Chirashi）」が出ます。
+
+| | |
+| --- | --- |
+| 受けるアクティビティ | `ScanActivity`（exported、`category.DEFAULT`、権限なし）。呼んだアプリのタスクの中に開く |
+| extras | `source`：呼んだアプリの id（例 `home`）、`mode`：`camera`（既定）か `pick`（画像を選ぶ） |
+| 流れ | すぐスキャナー（`pick` なら画像選び）→ Gemini で読み取り → 確認 → このスマホのカレンダーに登録（または Google カレンダーに画像付きで）→ `finish()` |
+| 結果 | 登録したら `RESULT_OK`。撮るのをやめた・登録せずに戻ったら `RESULT_CANCELED` |
 
 ## 移行（0.1 → 0.2）
 

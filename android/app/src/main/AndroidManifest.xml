@@ -1,6 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
   <uses-permission android:name="android.permission.INTERNET" />
   <uses-permission android:name="android.permission.CAMERA" />
+  <!-- 読み取った予定をこのスマホのカレンダーに入れる（Home の予定のタブにも出る） -->
+  <uses-permission android:name="android.permission.READ_CALENDAR" />
+  <uses-permission android:name="android.permission.WRITE_CALENDAR" />
   <uses-feature android:name="android.hardware.camera" android:required="false" />
   <!-- シリーズの共通設定（ハブの ContentProvider）。同じ署名鍵のアプリだけに許される。
        インストールの順番によらず許可されるよう、ハブと同じ定義をこのアプリも持つ -->
@@ -46,6 +49,18 @@
         <action android:name="android.intent.action.SEND_MULTIPLE" />
         <category android:name="android.intent.category.DEFAULT" />
         <data android:mimeType="image/*" />
+      </intent-filter>
+    </activity>
+    <!-- 撮って登録（Theta.Hatch.Series spec の SCAN）：Home の予定のタブの「チラシを撮る」から。
+         呼んだアプリのタスクの中に開き、登録したら RESULT_OK で閉じる -->
+    <activity
+        android:name=".ScanActivity"
+        android:exported="true"
+        android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|density|uiMode"
+        android:windowSoftInputMode="adjustResize">
+      <intent-filter>
+        <action android:name="app.thetahatch.action.SCAN" />
+        <category android:name="android.intent.category.DEFAULT" />
       </intent-filter>
     </activity>
     <!-- シリーズの移行：Theta Home Hatch から書き出し・読み込みを呼ぶ（Theta.Hatch.Series docs/MIGRATION.md §3） -->
